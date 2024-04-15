@@ -22,13 +22,21 @@
           mkdir "$out"
           tar xf "$relevant" -C "$out" --strip-components=3
         '';
-        fixupPhase = ''
-          for bin in $(find $out -executable -follow -type f); do
-            if file $bin | grep "ELF"; then
-              patchelf --set-interpreter "${pkgs.musl}/lib/ld-musl-x86_64.so.1" $bin || :
-            fi
-          done
-        '';
+        fixupPhase =
+          let
+            libPath = pkgs.lib.makeLibraryPath (with pkgs; [
+              libmpc
+              mpfr
+              gmp
+            ]);
+          in
+            ''
+              for bin in $(find $out -executable -follow -type f); do
+                if file $bin | grep "ELF"; then
+                  patchelf --set-interpreter "${pkgs.musl}/lib/ld-musl-x86_64.so.1" --set-rpath "${libPath}" $bin || :
+                fi
+              done
+            '';
 
         passthru = {
           shellHook = ''
